@@ -79,6 +79,7 @@ lazy_import('sage.combinat.partition_shifting_algebras', 'ShiftingOperatorAlgebr
 
 #Diagram algebra
 from .diagram_algebras import PartitionAlgebra, BrauerAlgebra, TemperleyLiebAlgebra, PlanarAlgebra, PropagatingIdeal
+from .generalized_temperley_lieb_algebra import GeneralizedTemperleyLiebAlgebra
 
 #Descent algebra
 lazy_import('sage.combinat.descent_algebra', 'DescentAlgebra')
