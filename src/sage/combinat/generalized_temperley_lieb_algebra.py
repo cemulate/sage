@@ -413,13 +413,13 @@ def _u_diagram(diagrams, i, decoration):
     arcs.extend((-j, j, None) for j in range(i+2, diagrams.order() + 1))
     return diagrams.element_class(diagrams, arcs, check=False)
 
-def GeneralizedTemperleyLiebAlgebra(family, n, R, delta):
+def GeneralizedTemperleyLiebAlgebra(family, order, R, delta):
     if family == 'A':
-        return GeneralizedTemperleyLiebAlgebraA(n, R, delta)
+        return GeneralizedTemperleyLiebAlgebraA(order, R, delta)
     elif family == 'B':
-        return GeneralizedTemperleyLiebAlgebraB(n, R, delta)
+        return GeneralizedTemperleyLiebAlgebraB(order, R, delta)
     elif family == 'H':
-        return GeneralizedTemperleyLiebAlgebraH(n, R, delta)
+        return GeneralizedTemperleyLiebAlgebraH(order, R, delta)
 
 class GeneralizedTemperleyLiebAlgebraA(AbstractGeneralizedTemperleyLiebAlgebra):
     def __init__(self, n, R, delta):
