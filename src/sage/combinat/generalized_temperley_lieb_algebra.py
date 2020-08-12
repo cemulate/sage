@@ -10,6 +10,12 @@ from sage.categories.algebras_with_basis import AlgebrasWithBasis
 from sage.combinat.free_module import CombinatorialFreeModule
 from sage.rings.rational_field import QQ
 from sage.rings.polynomial.all import PolynomialRing
+from sage.rings.polynomial.laurent_polynomial_ring import LaurentPolynomialRing
+from sage.algebras.free_algebra import FreeAlgebra
+from sage.combinat.root_system.coxeter_group import CoxeterGroup
+from sage.combinat.root_system.coxeter_type import CoxeterType
+from sage.sets.family import Family
+from collections import deque
 import math
 import itertools
 
@@ -516,3 +522,118 @@ class GeneralizedTemperleyLiebAlgebraH(AbstractGeneralizedTemperleyLiebAlgebra):
         def plot(self, **kargs):
             kargs['dot_color'] = 'orange'
             return super().plot(**kargs)
+
+
+def _canonical_basis_expression_bh(F, w):
+    def right_coset_decomposition_12(w):
+        left = deque(w)
+        right = deque() 
+        three_found = False
+        i = len(w) - 1
+
+        while i > -1:
+            s = w[i]
+            if s == 1:
+                right.appendleft(s)
+                del left[i]
+            elif s == 2:
+                if three_found:
+                    break
+                else:
+                    right.appendleft(s)
+                    del left[i]
+            elif s == 3:
+                three_found = True
+            i = i - 1
+        return list(left), list(right)
+
+    b_var = lambda s: F('b' + str(s))
+    w = list(w)
+    factors = deque([]) 
+    one_on_right = False 
+    # if the rightmost 2 in the parabolic part of a 12-coset decomposition has
+    # a 1 on the right, then that 2 is internal.
+    yielded =  list() 
+    # if the leftmost letter in the parabolic part w_I 12-coset decomposition 
+    # is a 1, we will 'yield' it to the left to be included in the next
+    # 12-coset decomposition if and only if the 1 is not lateral, i.e., if and
+    # only if w_I=1 or w_I=12---these are exactly the cases where no letter in 
+    # w_I is required to keep the 1 to their left by the definition of right 
+    # justified words.
+
+
+    while w: 
+        if w[-1] > 2:
+            factors.appendleft(b_var(w.pop()))
+        else: # i.e., once we come to a 1 or 2. 
+            x = w + yielded
+            x1, x2 = right_coset_decomposition_12(x)
+            if x2[0]==2: 
+            # this would imply there's no 1, hence no 2, to the left of x2
+                if x2 == [2,1,2,1]:
+                # the right 1 must have been yielded and hence not lateral
+                    factors.appendleft(F('b2*b1*b2*b1-2*b2*b1')) 
+                elif x2 == [2,1,2]:
+                    # need to check if the rightmost 2 is internal or lateral
+                    if one_on_right == False:
+                        factors.appendleft(F('b2*b1*b2-b2'))
+                    else:
+                        factors.appendleft(F('b2*b1*b2-2*b2'))
+                else: # x2=(2,) or x2=(2,1) (e.g., 2312)
+                    factors.extendleft(b_var(s) for s in reversed(x2))
+                factors.extendleft(b_var(s) for s in reversed(x1))
+                return F.prod(factors)
+            else: # i.e., if x2 starts with 1, the harder case
+                # deal with x2 first:
+                if x2 == [1,2,1,2]: # one_on_right must be false
+                    factors.appendleft(F('b1*b2*b1*b2-2*b1*b2'))
+                elif x2 == [1,2,1]: 
+                # the right 1 must have been yielded from the last iteration
+                    factors.appendleft(F('b1*b2*b1-b1'))
+                    yielded = list() # cannot yield the left 1
+                elif x2 == [1,2]: 
+                    # check if the 2 is internal
+                    if one_on_right == True: 
+                    # then the 2 in x2 is internal and the 1 on its right
+                    # hasn't been yielded because it's lateral, hence
+                    # bilateral; 2 being internal also implies the 1 in x2 is
+                    # lateral and should not be yielded
+                        factors.appendleft(F('b1*b2-1'))
+                    else: # the 2 is not internal, so yield the 1
+                        factors.appendleft(F('b2'))
+                        yielded = [1,]
+                else: # i.e., if x2 = (1,)
+                    yielded = [1,] # the only case factors is not updated
+                one_on_right = True
+            w = x1
+    # in case the last yielded 1 hasn't been put into factors (e.g. 341231)
+    if yielded == [1,]:
+        factors.appendleft(F('b1'))
+    return F.prod(factors)
+
+def _canonical_basis_expression_trivial(F, w):
+    return F.prod([F('b' + str(s)) for s in w])
+
+def canonical_basis_by_fully_commutative_elements(family, rank):
+    R = LaurentPolynomialRing(QQ, 'v')
+    v = R.gens()[0]
+    diagram_algebra = GeneralizedTemperleyLiebAlgebra(family, rank + 1, R, v + ~v)
+    
+    ctype = CoxeterType([family, rank])
+    if (family == 'B' or family == 'H'):
+        ctype = ctype.relabel(lambda s: rank - s + 1)
+    fc_elements = CoxeterGroup(ctype).fully_commutative_elements()
+
+    free_algebra = FreeAlgebra(R, ['b' + str(i) for i in range(1, rank + 1)])
+    gens, dgens = free_algebra.gens(), diagram_algebra.algebra_generators()
+    sub_mapping = {gens[i]: dgens[i] for i in range(rank)}
+    if family == 'B':
+        sub_mapping[gens[0]] = 2 * dgens[0]
+    canonical_basis_expression_function = _canonical_basis_expression_trivial if type == 'A' else _canonical_basis_expression_bh
+
+    def canonical_basis_element(w):
+        expression = _canonical_basis_expression_trivial(free_algebra, w) if type == 'A' else _canonical_basis_expression_bh(free_algebra, w)
+        return expression.subs(sub_mapping)
+
+    return Family(fc_elements, canonical_basis_element, lazy=True)
+    
