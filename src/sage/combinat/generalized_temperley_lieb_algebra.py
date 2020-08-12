@@ -427,7 +427,22 @@ def GeneralizedTemperleyLiebAlgebra(family, order, R, delta):
     elif family == 'H':
         return GeneralizedTemperleyLiebAlgebraH(order, R, delta)
 
-class GeneralizedTemperleyLiebAlgebraA(AbstractGeneralizedTemperleyLiebAlgebra):
+class WithCanonicalBasisFamily():
+    @abstract_method
+    def _canonical_basis_index_set(self):
+        pass
+
+    @abstract_method
+    def _canonical_basis_element(self, w):
+        pass
+
+    def canonical_basis(self):
+        # TODO: Make some assertions about base_ring() and delta, etc., when is
+        # this well-defined?
+        fc_elements = self._canonical_basis_index_set()
+        return Family(fc_elements, lambda w: self._canonical_basis_element(w), lazy=True)
+
+class GeneralizedTemperleyLiebAlgebraA(AbstractGeneralizedTemperleyLiebAlgebra, WithCanonicalBasisFamily):
     def __init__(self, n, R, delta):
         self._delta = delta
         super().__init__(n, R, QQ)
@@ -450,79 +465,11 @@ class GeneralizedTemperleyLiebAlgebraA(AbstractGeneralizedTemperleyLiebAlgebra):
     def algebra_generators(self):
         return [self.monomial(_u_diagram(self.basis().keys(), i, None)) for i in range(1, self.basis().keys().order())]
 
+    def _canonical_basis_index_set(self):
+        return CoxeterGroup(['A', self.basis().keys().order() - 1]).fully_commutative_elements()
 
-class GeneralizedTemperleyLiebAlgebraB(AbstractGeneralizedTemperleyLiebAlgebra):
-    def __init__(self, n, R, delta):
-        self._delta = delta
-        A = PolynomialRing(QQ, 'x')
-        D = A.quotient(A.ideal(A('x^2 - x')), 'd')
-        self._decoration = D.gens()[0]
-        super().__init__(n, R, D)
-
-    def _repr_(self):
-        return 'Generalized Temperley-Lieb algebra of type B and order {} over {}'.format(self.basis().keys().order(), self.base_ring())
-
-    def decoration(self):
-        return self._decoration
-    
-    def _process_loops(self, diagram):
-        # Plain loops are taken out as delta, loops with 1 dot are taken out as delta/2
-        m = 1
-        with diagram.clone(check=False) as d2:
-            for loop in diagram.loops():
-                d2.remove(loop)
-                if loop[2] == 1:
-                    m *= self._delta
-                elif loop[2] == self.decoration():
-                    m *= self._delta/2
-                else:
-                    raise ValueError("Unable to reduce decoration on loop")
-        return (m, d2)
-    
-    def algebra_generators(self):
-        return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else None))) for i in range(1, self.basis().keys().order())]
-
-    class Element(AbstractGeneralizedTemperleyLiebAlgebra.Element):
-        def plot(self, **kargs):
-            kargs['use_square'] = True
-            kargs['dot_color'] = 'green'
-            return super().plot(**kargs)
-
-
-class GeneralizedTemperleyLiebAlgebraH(AbstractGeneralizedTemperleyLiebAlgebra):
-    def __init__(self, n, R, delta):
-        self._delta = delta
-        A = PolynomialRing(QQ, 'x')
-        D = A.quotient(A.ideal(A('x^2 - x - 1')), 'd')
-        self._decoration = D.gens()[0]
-        super().__init__(n, R, D)
-
-    def decoration(self):
-        return self._decoration
-    
-    def _process_loops(self, diagram):
-        # Empty loops are taken out as delta, loops with one dot are taken out as 0
-        m = 1
-        with diagram.clone(check=False) as d2:
-            for loop in diagram.loops():
-                d2.remove(loop)
-                if loop[2] == 1:
-                    m *= self.delta
-                elif loop[2] == self.decoration():
-                    m = 0
-                    continue
-                else:
-                    raise ValueError("Unable to reduce decoration on loop")
-        return (m, d2)
-    
-    def algebra_generators(self):
-        return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else None))) for i in range(1, self.basis().keys().order())]
-
-    class Element(AbstractGeneralizedTemperleyLiebAlgebra.Element):
-        def plot(self, **kargs):
-            kargs['dot_color'] = 'orange'
-            return super().plot(**kargs)
-
+    def _canonical_basis_element(self, w):
+        return self.prod([self.algebra_generators()[s-1] for s in w])
 
 def _canonical_basis_expression_bh(F, w):
     def right_coset_decomposition_12(w):
@@ -611,29 +558,95 @@ def _canonical_basis_expression_bh(F, w):
         factors.appendleft(F('b1'))
     return F.prod(factors)
 
-def _canonical_basis_expression_trivial(F, w):
-    return F.prod([F('b' + str(s)) for s in w])
+class GeneralizedTemperleyLiebAlgebraB(AbstractGeneralizedTemperleyLiebAlgebra, WithCanonicalBasisFamily):
+    def __init__(self, n, R, delta):
+        self._delta = delta
+        A = PolynomialRing(QQ, 'x')
+        D = A.quotient(A.ideal(A('x^2 - x')), 'd')
+        self._decoration = D.gens()[0]
+        super().__init__(n, R, D)
 
-def canonical_basis_by_fully_commutative_elements(family, rank):
-    R = LaurentPolynomialRing(QQ, 'v')
-    v = R.gens()[0]
-    diagram_algebra = GeneralizedTemperleyLiebAlgebra(family, rank + 1, R, v + ~v)
+    def _repr_(self):
+        return 'Generalized Temperley-Lieb algebra of type B and order {} over {}'.format(self.basis().keys().order(), self.base_ring())
+
+    def decoration(self):
+        return self._decoration
     
-    ctype = CoxeterType([family, rank])
-    if (family == 'B' or family == 'H'):
-        ctype = ctype.relabel(lambda s: rank - s + 1)
-    fc_elements = CoxeterGroup(ctype).fully_commutative_elements()
-
-    free_algebra = FreeAlgebra(R, ['b' + str(i) for i in range(1, rank + 1)])
-    gens, dgens = free_algebra.gens(), diagram_algebra.algebra_generators()
-    sub_mapping = {gens[i]: dgens[i] for i in range(rank)}
-    if family == 'B':
-        sub_mapping[gens[0]] = 2 * dgens[0]
-    canonical_basis_expression_function = _canonical_basis_expression_trivial if type == 'A' else _canonical_basis_expression_bh
-
-    def canonical_basis_element(w):
-        expression = _canonical_basis_expression_trivial(free_algebra, w) if type == 'A' else _canonical_basis_expression_bh(free_algebra, w)
-        return expression.subs(sub_mapping)
-
-    return Family(fc_elements, canonical_basis_element, lazy=True)
+    def _process_loops(self, diagram):
+        # Plain loops are taken out as delta, loops with 1 dot are taken out as delta/2
+        m = 1
+        with diagram.clone(check=False) as d2:
+            for loop in diagram.loops():
+                d2.remove(loop)
+                if loop[2] == 1:
+                    m *= self._delta
+                elif loop[2] == self.decoration():
+                    m *= self._delta/2
+                else:
+                    raise ValueError("Unable to reduce decoration on loop")
+        return (m, d2)
     
+    def algebra_generators(self):
+        return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else None))) for i in range(1, self.basis().keys().order())]
+
+    class Element(AbstractGeneralizedTemperleyLiebAlgebra.Element):
+        def plot(self, **kargs):
+            kargs['use_square'] = True
+            kargs['dot_color'] = 'green'
+            return super().plot(**kargs)
+
+    def _canonical_basis_index_set(self):
+        rank = self.basis().keys().order() - 1
+        ctype = CoxeterType(['B', rank]).relabel(lambda s: rank - s + 1)
+        return CoxeterGroup(ctype).fully_commutative_elements()
+
+    def _canonical_basis_element(self, w):
+        rank = self.basis().keys().order() - 1
+        F = FreeAlgebra(self.base_ring(), ['b' + str(i) for i in range(1, rank + 1)])
+        exp = _canonical_basis_expression_bh(F, w)
+        return exp.subs({F.gens()[i]: (2 if i == 0 else 1) * self.algebra_generators()[i] for i in range(rank)})
+
+class GeneralizedTemperleyLiebAlgebraH(AbstractGeneralizedTemperleyLiebAlgebra, WithCanonicalBasisFamily):
+    def __init__(self, n, R, delta):
+        self._delta = delta
+        A = PolynomialRing(QQ, 'x')
+        D = A.quotient(A.ideal(A('x^2 - x - 1')), 'd')
+        self._decoration = D.gens()[0]
+        super().__init__(n, R, D)
+
+    def decoration(self):
+        return self._decoration
+    
+    def _process_loops(self, diagram):
+        # Empty loops are taken out as delta, loops with one dot are taken out as 0
+        m = 1
+        with diagram.clone(check=False) as d2:
+            for loop in diagram.loops():
+                d2.remove(loop)
+                if loop[2] == 1:
+                    m *= self.delta
+                elif loop[2] == self.decoration():
+                    m = 0
+                    continue
+                else:
+                    raise ValueError("Unable to reduce decoration on loop")
+        return (m, d2)
+    
+    def algebra_generators(self):
+        return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else None))) for i in range(1, self.basis().keys().order())]
+
+    class Element(AbstractGeneralizedTemperleyLiebAlgebra.Element):
+        def plot(self, **kargs):
+            kargs['dot_color'] = 'orange'
+            return super().plot(**kargs)
+
+    def _canonical_basis_index_set(self):
+        rank = self.basis().keys().order() - 1
+        ctype = CoxeterType(['H', rank]).relabel(lambda s: rank - s + 1)
+        return CoxeterGroup(ctype).fully_commutative_elements()
+
+    def _canonical_basis_element(self, w):
+        rank = self.basis().keys().order() - 1
+        F = FreeAlgebra(self.base_ring(), ['b' + str(i) for i in range(1, rank + 1)])
+        exp = _canonical_basis_expression_bh(F, w)
+        return exp.subs({F.gens()[i]: self.algebra_generators()[i] for i in range(rank)})
