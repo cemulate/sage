@@ -139,8 +139,7 @@ class DecoratedTemperleyLiebDiagram(NormalizedClonableList):
         """
         return len([e for e in self if e[0] > 0 and e[1] > 0])
 
-    #### change all 'west' to 'left'
-    def get_west_exposed_propagating_edge(self):
+    def get_left_exposed_propagating_edge(self):
         propagating = [arc for arc in self if sign(arc[0]) != sign(arc[1])]
         if len(propagating) == 0:
             return None
