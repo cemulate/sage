@@ -125,18 +125,6 @@ class DecoratedTemperleyLiebDiagram(NormalizedClonableList):
         else:
             return None
 
-    #### Do we need this other than for the ML involution? 
-    #### If not, Can we remove this? 
-    def set_arc_decoration(self, a, b, val):
-        self._require_mutable()
-
-        (i, e) = next(((i, e) for (i, e) in enumerate(self) if {e[0], e[1]} == {a, b}), None)
-        if e is None:
-            raise ValueError('There is no such arc to set the arc decoration on.')
-        else:
-            self.pop(i)
-            self.insert(i, (e[0], e[1], val))
-
     def a_value(self):
         r"""
         Return the number of caps, equivalently, the number of cups, in
