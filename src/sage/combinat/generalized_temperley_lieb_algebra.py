@@ -171,7 +171,7 @@ class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
             return False
         if d.temperley_lieb_diagram() not in self._TL_diagrams:
             return False
-        if any(arc[2] not in self._decoration_structure for arc in d):
+        if any(arc[2] not in self._decoration_algebra for arc in d):
             return False
         # Check left escaping
         for x, y in (arc[:2] for arc in d.arcs() if arc[2] is not None):
@@ -215,7 +215,7 @@ class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
         return ' '.join([
             'Generalized Temperley-Lieb diagrams',
             'of order {}'.format(self._order),
-            'with decorations in {}'.format(str(self._decoration_structure)) if self._decoration_structure is not None else ''
+            'with decorations in {}'.format(str(self._decoration_algebra)) if self._decoration_algebra is not None else ''
         ])
 
 # rename the following class by getting rid of Generalized or Abstract (if
@@ -343,7 +343,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
         # We'll need this repeatedly / fix an ordering.
         right_pad = lambda l: l + [0] * (self.decoration().parent().degree() - len(l))
         edge_enumeration = list(enumerate(result))
-        coeffs = [right_pad(list(self._decoration_ring(e[2]))) for (i, e) in edge_enumeration]
+        coeffs = [right_pad(list(self._decoration_algebra(e[2]))) for (i, e) in edge_enumeration]
         
         # Iterate over all possible choices of powers of d for every edge
         for choice in itertools.product(range(self.decoration().parent().degree()), repeat=len(edge_enumeration)):
