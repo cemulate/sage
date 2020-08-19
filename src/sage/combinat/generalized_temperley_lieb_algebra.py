@@ -103,20 +103,13 @@ class DecoratedTemperleyLiebDiagram(NormalizedClonableList):
         return '{' + ','.join('{' + ','.join(str(x) for x in arc) + '}' for arc in self) + '}'
 
     def to_graph(self):
-        return Graph(list(self), weighted=True, loops=True, multiedges=True)
+        return Graph(list(self), weighted=True)
 
     def temperley_lieb_diagram(self):
         r"""
         ### mimic blob_algebra
         """
         return self.parent()._TLDiagrams([arc[:2] for arc in self])
-
-    #### move loops() to later, remove arcs() or at least the loop check there?
-    def arcs(self):
-        return (arc for arc in self if arc[0] != 0 and arc[1] != 0)
-
-    def loops(self):
-        return (arc for arc in self if arc[0] == arc[1] == 0)
 
     def get_arc_decoration(self, a, b):
         e = next((e for e in self if {e[0], e[1]} == {a, b}), None)
@@ -299,7 +292,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
                 union.add_edge((0, v), (1, -v))
 
         # The new diagram
-        result_arcs = []
+        result_arcs_and_loops = []
 
         for cc in union.connected_components():
             # Don't care about "fake vertex" 0
@@ -317,31 +310,28 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
                 new_weight *= 1 if e[2] is None else e[2]
 
             if len(outer_vertices) == 0:
-                # This is a loop, add a self-edge at 0 in the new graph.
-                result_arcs.append((0, 0, new_weight))
+                # Represent loops as "arcs" with None as the endpoints to make things convenient
+                result_arcs_and_loops.append((None, None, new_weight))
             else:
                 # Add an edge between the original numbers of the outer vertices in the new graph, with new edge label.
-                result_arcs.append(tuple(e[1] for e in outer_vertices) + (new_weight,))
-
-        result = self._indices.element_class(self._indices, result_arcs, check=False)
+                result_arcs_and_loops.append(tuple(e[1] for e in outer_vertices) + (new_weight,))
         
         ##################################################
         # PART 2: Expansion
         ##################################################
         
-        # 'result' is now a diagram with complex terms of the decoration algebra on its edges.
+        # 'result_arcs_and_loops' is are now arcs/loops with labeled by
+        # complex terms / polynomials in the decoration algebra.
         # We will distribute these local results "globally".
         
-        # element is the linear combination of irreducible diagrams into which we will expand 'result'
+        # element is the linear combination of irreducible diagrams into which we will expand the results.
         element = self(0)
-        
-        # We'll need this repeatedly / fix an ordering.
+
         right_pad = lambda l: l + [0] * (self.decoration().parent().degree() - len(l))
-        edge_enumeration = list(enumerate(result))
-        coeffs = [right_pad(list(self._decoration_algebra(e[2]))) for (i, e) in edge_enumeration]
+        coeff_lists = [right_pad(list(self._decoration_algebra(e[2]))) for e in result_arcs_and_loops]
         
-        # Iterate over all possible choices of powers of d for every edge
-        for choice in itertools.product(range(self.decoration().parent().degree()), repeat=len(edge_enumeration)):
+        # Iterate over all possible choices of powers of d for every arc/loop
+        for choice in itertools.product(range(self.decoration().parent().degree()), repeat=len(result_arcs_and_loops)):
             # For this choice, we want to construct a diagram with the edge ledges
             # being that simple power of d, prescribed by 'choice'
             
@@ -349,8 +339,8 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
             # The product of the coefficients of these powers of d in 'result'.
             
             count = 1
-            for (i, e) in edge_enumeration:
-                count *= coeffs[i][choice[i]]
+            for i in range(len(result_arcs_and_loops)):
+                count *= coeff_lists[i][choice[i]]
             
             # Bail
             if count == 0:
@@ -359,27 +349,25 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
             # Now actually construct that diagram described earlier.
             
             labels = [self.decoration()**i for i in choice]
-            arcs = [e[:2] + (labels[i],) for (i, e) in edge_enumeration]
-            diagram = self._indices.element_class(self._indices, arcs, check=False)
+            arcs_and_loops = [e[:2] + (labels[i],) for (i, e) in enumerate(result_arcs_and_loops)]
             
             ##################################################
             # PART 3: Elimination rules
             ##################################################
             
-            # 'diagram' is an 'irreducible' diagram.
-            # Now it may need to have loops removed and converted to a multiplicative constant
-            # (or possibly other behavior, depending on the type)
+            # The arcs and loops are now irreducible, i.e. they are labeled by pure powers of the decoration.
+            # To obtain a proper diagram, we need to remove the loops and convert them into a multiplicative constant.
             
-            # Examine loops in the diagram
-            (multiplier, new_diagram) = self._process_loops(diagram)
-
-            # This diagram got annihilated
-            if multiplier == 0:
-                continue
+            arcs = [e for e in arcs_and_loops if e[0] is not None and e[1] is not None]
+            loops = [e[2] for e in arcs_and_loops if e[0] == e[1] == None]
+            # Perform type-specific logic to convert simple arcs and loops into 
+            # a single term of the algebra (a multiple of a basis element indexed
+            # by a proper diagram without loops).
+            new_term = self._process_loops(arcs, loops)
             
-            # Finally, add count many of this diagram (multiplied by the multiplier) to 'element'
+            # Finally, add 'count' many of this term to 'element'
             
-            element += multiplier * self.base_ring()(count) * self.basis()[new_diagram]
+            element += self.base_ring()(count) * new_term
         
         return element
 
@@ -560,14 +548,14 @@ class GeneralizedTemperleyLiebAlgebraA(AbstractGeneralizedTemperleyLiebAlgebra, 
     def decoration(self):
         return QQ(1)
     
-    def _process_loops(self, diagram):
-        # Loops are taken out as delta
+    def _process_loops(self, arcs, loops):
+        # Loops are taken out as delta'
         m = 1
-        with diagram.clone(check=False) as d2:
-            for loop in diagram.loops():
-                d2.remove(loop)
-                m *= self._delta
-        return (m, d2)
+        for d in loops:
+            m *= self._delta
+
+        diagram = self._indices.element_class(self._indices, arcs, check=False)
+        return m * self.basis()[diagram]
     
     def algebra_generators(self):
         return [self.monomial(_u_diagram(self.basis().keys(), i, None)) for i in range(1, self.basis().keys().order())]
@@ -679,19 +667,17 @@ class GeneralizedTemperleyLiebAlgebraB(AbstractGeneralizedTemperleyLiebAlgebra, 
     def decoration(self):
         return self._decoration
     
-    def _process_loops(self, diagram):
+    def _process_loops(self, arcs, loops):
         # Plain loops are taken out as delta, loops with 1 dot are taken out as delta/2
         m = 1
-        with diagram.clone(check=False) as d2:
-            for loop in diagram.loops():
-                d2.remove(loop)
-                if loop[2] == 1:
-                    m *= self._delta
-                elif loop[2] == self.decoration():
-                    m *= self._delta/2
-                else:
-                    raise ValueError("Unable to reduce decoration on loop")
-        return (m, d2)
+        for d in loops:
+            if d == 1:
+                m *= self._delta
+            elif d == self.decoration():
+                m *= self._delta / 2
+
+        diagram = self._indices.element_class(self._indices, arcs, check=False)
+        return m * self.basis()[diagram]
     
     def algebra_generators(self):
         return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else None))) for i in range(1, self.basis().keys().order())]
@@ -724,20 +710,19 @@ class GeneralizedTemperleyLiebAlgebraH(AbstractGeneralizedTemperleyLiebAlgebra, 
     def decoration(self):
         return self._decoration
     
-    def _process_loops(self, diagram):
-        # Empty loops are taken out as delta, loops with one dot are taken out as 0
+    def _process_loops(self, arcs, loops):
         m = 1
-        with diagram.clone(check=False) as d2:
-            for loop in diagram.loops():
-                d2.remove(loop)
-                if loop[2] == 1:
-                    m *= self.delta
-                elif loop[2] == self.decoration():
-                    m = 0
-                    continue
-                else:
-                    raise ValueError("Unable to reduce decoration on loop")
-        return (m, d2)
+        # Empty loops are taken out as delta, loops with one dot are taken out as 0
+        for d in loops:
+            if d == 1:
+                m *= self._delta
+            elif d == self.decoration():
+                m = 0
+                # End early
+                return 0
+
+        diagram = self._indices.element_class(self._indices, arcs, check=False)
+        return m * self.basis()[diagram]
     
     def algebra_generators(self):
         return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else None))) for i in range(1, self.basis().keys().order())]
