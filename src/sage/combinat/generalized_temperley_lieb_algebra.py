@@ -240,11 +240,6 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
         basis = DecoratedTemperleyLiebDiagrams(order, decoration_algebra)
         CombinatorialFreeModule.__init__(self, R, basis, category=AlgebrasWithBasis(R))
 
-    # What exactly is the purpose of the following? Can we remove it?
-    def _basis_element_no_check(self, data):
-        diagrams = self.basis().keys()
-        return diagrams.element_class(diagrams, data, check=False)
-
     def _element_constructor_(self, x):
         return self.basis()[self.element_class(self, x)]
     
@@ -278,7 +273,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
 
     def one_basis(self):
         arcs = [(-i, i, 1) for i in range(1, self.basis().keys().order() + 1)]
-        return self._basis_element_no_check(arcs)
+        return self._indices.element_class(self._indices, arcs, check=False)
     
     def product_on_basis(self, b1, b2):
         r"""
@@ -328,7 +323,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
                 # Add an edge between the original numbers of the outer vertices in the new graph, with new edge label.
                 result_arcs.append(tuple(e[1] for e in outer_vertices) + (new_weight,))
 
-        result = self._basis_element_no_check(result_arcs)
+        result = self._indices.element_class(self._indices, result_arcs, check=False)
         
         ##################################################
         # PART 2: Expansion
@@ -365,7 +360,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
             
             labels = [self.decoration()**i for i in choice]
             arcs = [e[:2] + (labels[i],) for (i, e) in edge_enumeration]
-            diagram = self._basis_element_no_check(arcs)
+            diagram = self._indices.element_class(self._indices, arcs, check=False)
             
             ##################################################
             # PART 3: Elimination rules
@@ -384,7 +379,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
             
             # Finally, add count many of this diagram (multiplied by the multiplier) to 'element'
             
-            element += multiplier * self.base_ring()(count) * self.basis()[self._basis_element_no_check(new_diagram)]
+            element += multiplier * self.base_ring()(count) * self.basis()[new_diagram]
         
         return element
 
