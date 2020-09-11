@@ -14,9 +14,9 @@ connections to the blob diagrams of ``sage.combinat.blob_algebra``.
 More generally, by a diagram realization of a generalized TL we mean an algebra
 over a base ring `R` where a basis is given by certain decorated diagrams and
 where multiplication is given by stacking of diagrams modulo certain
-reductions, where the decorations and reductions rules can often be captured
-using a "decoration algebra". This file implements the diagram realizations of
-the generalized TL algebras of types A, B, D and H.
+reductions; the decorations and reductions rules can be captured using a
+"decoration algebra" isomorphic to a Verlinde algebra. This file implements the
+diagram realizations of the generalized TL algebras of types A, B, D and H.
 
 Authors:
 
@@ -139,6 +139,8 @@ class DecoratedTemperleyLiebDiagram(NormalizedClonableList):
         else:
             return min(propagating, key=lambda arc: arc[0] if arc[0] > 0 else arc[1])
 
+     
+
 
 class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
     r"""
@@ -155,7 +157,9 @@ class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
     Element = DecoratedTemperleyLiebDiagram
 
     def order(self):
-        #### mimic blob_algebra
+        r"""
+        Return the order of the diagrams.
+        """
         return self._order
 
     def __contains__(self, d):
@@ -211,11 +215,10 @@ class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
             'with decorations in {}'.format(str(self._decoration_algebra)) if self._decoration_algebra is not None else ''
         ])
 
-# rename the following class by getting rid of Generalized or Abstract (if
-# there are no technical conventions saying we should keep Abstract) ?
 class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
     r"""
-    Template for a diagram realization of a generalized TL algebra.
+    Template for diagram realizations of generalized TL algebras of types A, B,
+    and H, with a multiplication algorithm to be shared across all types.
 
     #### Include some examples that show how specific types (include two,
     perhaps) of TL algebras are
@@ -240,14 +243,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
         # How basis elements are displayed in expressions
         return 'B[{}]'.format(str(x))
 
-    #### Are the following four methods mandatory/necessary? If not, can we
-    #### remove them? For those that are here because they will be used in this
-    #### class and that are 'pass'ed here but will be specified later, we
-    #### we should have a comment like 'The following methods are necessary for
-    #### the methods in this class, but their particular form will be specified
-    #### as we create specific genralized TL algebras using this template.', to
-    #### make things easier for the mathematicians who'd read this but are not
-    #### familiar with this kind of mechanism in Python.
+    # type-dependent methods to be specified in concrete types
     @abstract_method
     def algebra_generators(self):
         pass
@@ -270,16 +266,38 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
     
     def product_on_basis(self, b1, b2):
         r"""
-        Compute the product of two decorated TL diagrams `b1` and `b2`.
+        Compute the product `b1 * b2` of decorated TL diagrams `b1` and `b2`.
 
-        #### I'll write a paragraph explaining how to compute the product in
-        more detail. Can you include a few examples?
-        """
-        
-        # This is the main decorated TL diagram multiplication algorithm
-        
+        Let `n` be the order of `b1` and `b2`. To obtain `b1 * b2`, first stack
+        `b1` on top of `b2` and identity the bottom vertex `-i` in `b1` with
+        the top vertex `i` in `b2` for all `1 \le i \le n`. Doing so results in
+        a graph `D` with two types of vertices: the "outer" vertices that are
+        in the top side of `b1` or the bottom side of `b2`, and the "inner" or
+        "middle" vertices that come from the identification of a bottom vertex
+        of `b1` with a top vertex of `b2`. Note that there are two possible
+        kinds of arcs incident to two outer vertices in `D`: (1) the cups of
+        `b2` and the caps of `b1`, which remain in `D` in the stacking, and (2)
+        arcs connecting a bottom vertex `-i` in `b2` with a top vertex `j` in
+        `b1`, obtained from a propogating arc of the form `\{-i,k\}` in `b2`
+        and a propogating arc of the form `\{-k,j\}` in `b1` for some `1\le k
+        \le n`. Finally, note that the stacking may result in loops formed out
+        of a cup `\{i,j\}` in `b2` and a cup `\{-i,-j\}` in `b2`. 
+
+        Next, we define the product `b1 * b2` in the diagram algebra to be the
+        element `\delta^{l} \cdot d` where `\delta` is an element of the base
+        ring `R` specified in the construction of the algbera, `l` is the
+        number of loops in `D`, and `d` is the decorated TL diagram defined as
+        follows: as a graph, its vertices are the `2n` outer vertices of `D`
+        and its arcs are the arcs of Types (1) and (2); for decorations, every
+        arc of Type (1) keeps its original decoration from `b1` or `b2`, while
+        the decoration for an arc of Type (2) is defined to be the product, in
+        the decoration algebra, of the decorations of the two arcs it arises
+        from. 
+
+        ####  Include Examples.
+        """ 
         ##################################################
-        # PART 1: Diagram amalgamation
+        # Step 1: Diagram stacking
         ##################################################
         
         t1, t2 = b1.to_graph(), b2.to_graph()
@@ -295,6 +313,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
         result_arcs_and_loops = []
 
         for cc in union.connected_components():
+            #### Can we get rid of the following? 
             # Don't care about "fake vertex" 0
             if (0, 0) in cc or (1, 0) in cc:
                 continue
@@ -370,8 +389,6 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
             element += self.base_ring()(count) * new_term
         
         return element
-
-#### I have not read past this point yet.
 
     # Inherit this member class to add some methods to elements of the algebra
     class Element(CombinatorialFreeModule.Element):
@@ -602,7 +619,6 @@ def _canonical_basis_expression_bh(F, w):
     # only if w_I=1 or w_I=12---these are exactly the cases where no letter in 
     # w_I is required to keep the 1 to their left by the definition of right 
     # justified words.
-
 
     while w: 
         if w[-1] > 2:
