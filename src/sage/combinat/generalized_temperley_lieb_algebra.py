@@ -313,11 +313,6 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
         result_arcs_and_loops = []
 
         for cc in union.connected_components():
-            #### Can we get rid of the following? 
-            # Don't care about "fake vertex" 0
-            if (0, 0) in cc or (1, 0) in cc:
-                continue
-
             # Vertices on the outer top or bottom
             outer_vertices = [x for x in cc if ((x[0] == 0 and x[1] < 0) or (x[0] == 1 and x[1] > 0))]
             # Edges that were in the original diagrams (that have edge labels)
@@ -329,7 +324,9 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
                 new_weight *= 1 if e[2] is None else e[2]
 
             if len(outer_vertices) == 0:
-                # Represent loops as "arcs" with None as the endpoints to make things convenient
+                # This connected component contains no vertices on the outer edges of the composite
+                # diagram; i.e. it is an internal loop. Represent loops as "arcs" with None as the
+                # endpoints to make things convenient
                 result_arcs_and_loops.append((None, None, new_weight))
             else:
                 # Add an edge between the original numbers of the outer vertices in the new graph, with new edge label.
