@@ -166,15 +166,15 @@ class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
         ### mimic blob_algebra, include lots of examples
         if not isinstance(d, DecoratedTemperleyLiebDiagram):
             return False
-        if d.temperley_lieb_diagram() not in self._TL_diagrams:
+        if d.temperley_lieb_diagram() not in self._TLDiagrams:
             return False
-        if any(arc[2] not in self._decoration_algebra for arc in d):
+        if any(arc[2] is not None and arc[2] not in self._decoration_algebra for arc in d):
             return False
         # Check left escaping
-        for x, y in (arc[:2] for arc in d.arcs() if arc[2] is not None):
+        for x, y in (arc[:2] for arc in d if arc[2] is not None):
             if x > 0:
                 # (x, y) is a cup
-                for arc in d.arcs():
+                for arc in d:
                     if arc[1] < 0:
                         # arc is a cap
                         continue
@@ -188,7 +188,7 @@ class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
                             return False
             elif y < 0:
                 # (x, y) is a cap
-                for arc in d.arcs():
+                for arc in d:
                     if arc[0] > 0:
                         # cup
                         continue
@@ -201,7 +201,7 @@ class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
                             return False
             else:
                 # Must be a propogating line
-                if any(arc[0] < 0 and arc[1] > 0 and arc[1] < y for arc in d.arcs()):
+                if any(arc[0] < 0 and arc[1] > 0 and arc[1] < y for arc in d):
                     return False
         return True
 
@@ -441,7 +441,7 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
                     r = dot_radius
                     return plot.polygon([(x - r, y - r), (x - r, y + r), (x + r, y + r), (x + r, y - r)], color='white', fill=True, edgecolor='black')
 
-            for (a, b, dec) in diagram.arcs():
+            for (a, b, dec) in diagram:
                 dec_type = 'circle'
                 power = pure_decoration_power(dec)
                 if power is None and use_square and dec == (2 * self.parent().decoration() - 1):
