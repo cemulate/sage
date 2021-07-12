@@ -2603,7 +2603,10 @@ REFERENCES:
 .. [GR2001] Chris Godsil and Gordon Royle, *Algebraic Graph Theory*. Graduate
             Texts in Mathematics, Springer, 2001.
 
-.. [Gre2006] \R. M. Green, *Star reducible Coxeter groups*, Glasgow
+.. [Gre2001] \R. M. Green, *Decorated tangles and canonical bases*, J. Algebra
+            246 (2001), no. 2, pp. 594-628.
+
+.. [Gre2006] \R. M. Green, *Star reducible Coxeter groups*, Glasgow 
             Mathematical Journal, Volume 48, Issue 3, pp. 583-609.
 
 .. [Gri2021] \O. Gritsenko, *On strongly regular graph with parameters (65; 32; 15; 16)*,
@@ -2622,7 +2625,7 @@ REFERENCES:
 
 .. [Graham1985] \J. Graham,
                 *Modular representations of Hecke algebras and related algebras*.
-                PhD thesis, University of Sydney, 1985.
+                PhD thesis, University of Sydney, 1995.
 
 .. [GriRei18] Darij Grinberg, Victor Reiner,
               *Hopf Algebras in Combinatorics*,
