@@ -522,10 +522,11 @@ class AbstractGeneralizedTemperleyLiebAlgebra(CombinatorialFreeModule):
             return graphics_array([graphics])
 
 def _u_diagram(diagrams, i, decoration):
-    arcs = [(-j, j, None) for j in range(1, i)]
+    one = diagrams.decoration_algebra().one()
+    arcs = [(-j, j, one) for j in range(1, i)]
     arcs.append((-i, -(i+1), decoration))
     arcs.append((i, i+1, decoration))
-    arcs.extend((-j, j, None) for j in range(i+2, diagrams.order() + 1))
+    arcs.extend((-j, j, one) for j in range(i+2, diagrams.order() + 1))
     return diagrams.element_class(diagrams, arcs, check=False)
 
 def GeneralizedTemperleyLiebAlgebra(family, order, R, delta):
@@ -572,7 +573,8 @@ class GeneralizedTemperleyLiebAlgebraA(AbstractGeneralizedTemperleyLiebAlgebra, 
         return m * self.basis()[diagram]
     
     def algebra_generators(self):
-        return [self.monomial(_u_diagram(self.basis().keys(), i, None)) for i in range(1, self.basis().keys().order())]
+        one = self.basis().keys().decoration_algebra().one()
+        return [self.monomial(_u_diagram(self.basis().keys(), i, one)) for i in range(1, self.basis().keys().order())]
 
     def _canonical_basis_index_set(self):
         return CoxeterGroup(['A', self.basis().keys().order() - 1]).fully_commutative_elements()
@@ -693,7 +695,8 @@ class GeneralizedTemperleyLiebAlgebraB(AbstractGeneralizedTemperleyLiebAlgebra, 
         return m * self.basis()[diagram]
     
     def algebra_generators(self):
-        return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else None))) for i in range(1, self.basis().keys().order())]
+        one = self.basis().keys().decoration_algebra().one()
+        return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else one))) for i in range(1, self.basis().keys().order())]
 
     class Element(AbstractGeneralizedTemperleyLiebAlgebra.Element):
         def plot(self, **kargs):
@@ -738,7 +741,8 @@ class GeneralizedTemperleyLiebAlgebraH(AbstractGeneralizedTemperleyLiebAlgebra, 
         return m * self.basis()[diagram]
     
     def algebra_generators(self):
-        return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else None))) for i in range(1, self.basis().keys().order())]
+        one = self.basis().keys().decoration_algebra().one()
+        return [self.monomial(_u_diagram(self.basis().keys(), i, (self.decoration() if i == 1 else one))) for i in range(1, self.basis().keys().order())]
 
     class Element(AbstractGeneralizedTemperleyLiebAlgebra.Element):
         def plot(self, **kargs):
