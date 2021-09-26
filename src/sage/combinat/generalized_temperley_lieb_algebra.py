@@ -46,6 +46,8 @@ from sage.misc.abstract_method import abstract_method
 from sage.sets.family import Family
 from sage.graphs.graph import Graph
 from sage.functions.generalized import sign
+from sage.rings.integer_ring import ZZ
+from sage.arith.misc import gcd
 from sage.rings.rational_field import QQ
 from sage.rings.polynomial.all import PolynomialRing
 from sage.rings.polynomial.laurent_polynomial_ring import LaurentPolynomialRing
@@ -118,6 +120,16 @@ class DecoratedTemperleyLiebDiagram(NormalizedClonableList):
         else:
             return None
 
+    def set_arc_decoration(self, a, b, val):
+        self._require_mutable()
+
+        (i, e) = next(((i, e) for (i, e) in enumerate(self) if {e[0], e[1]} == {a, b}), None)
+        if e is None:
+            raise ValueError('There is no such arc to set the arc decoration on.')
+        else:
+            self.pop(i)
+            self.insert(i, (e[0], e[1], val))
+
     def a_value(self):
         r"""
         Return the number of caps, equivalently, the number of cups, in
@@ -161,6 +173,9 @@ class DecoratedTemperleyLiebDiagrams(Parent, UniqueRepresentation):
         Return the order of the diagrams.
         """
         return self._order
+
+    def decoration_algebra(self):
+        return self._decoration_algebra
 
     def __contains__(self, d):
         ### mimic blob_algebra, include lots of examples
@@ -703,6 +718,26 @@ class GeneralizedTemperleyLiebAlgebraB(AbstractGeneralizedTemperleyLiebAlgebra, 
             kargs['use_square'] = True
             kargs['dot_color'] = 'green'
             return super().plot(**kargs)
+
+        def canonical_redecoration(self):
+            algebra = self.parent()
+
+            # Copy a diagram from one of the terms as a "reference"
+            diagram = self.terms()[0].diagram()
+            
+            with diagram.clone(check=False) as new_diagram:
+                for (a, b, val) in diagram:
+                    if any(t.get_arc_decoration(a, b) != val for (t, c) in self):
+                        # Any arc that differs throughout becomes a square
+                        new_diagram.set_arc_decoration(a, b, 2*algebra.decoration() - 1)
+                    else:
+                        # Any arc that is constant throughout keeps its decoration
+                        new_diagram.set_arc_decoration(a, b, val)
+            
+            # Will either be 2 or 1
+            coeff = gcd([ZZ(c) for (t, c) in self])
+
+            return coeff*algebra.monomial(new_diagram)
 
     def _canonical_basis_index_set(self):
         rank = self.basis().keys().order() - 1
