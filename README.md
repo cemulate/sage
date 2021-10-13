@@ -1,6 +1,6 @@
-## Generalized Temperley-Lieb Algebras in Sage
+## Generalized Temperley&ndash;Lieb Algebras in Sage
 
-This repository branch (`tl-algebra`) contains an impelementation of Temperley--Lieb (TL) algebras of types A, B, and H in [SageMath](https://www.sagemath.org/).
+This repository branch (`tl-algebra`) contains an impelementation of Temperley&ndash;Lieb (TL) algebras of types A, B, and H in [SageMath](https://www.sagemath.org/).
 The code can perform computations in the TL algebras and plot TL diagrams in these algebras; the basic usage is demonstrated in the Jupyter notebook at [https://math.colorado.edu/~chme3268/research/tlnotebookdemo](https://math.colorado.edu/~chme3268/research/tlnotebookdemo).
 A gallery of TL diagrams can be found at [https://math.colorado.edu/~chme3268/diagrams/](https://math.colorado.edu/~chme3268/diagrams/).
 
